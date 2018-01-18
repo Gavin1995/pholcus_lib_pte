@@ -140,7 +140,7 @@ var JDSpider = &Spider{
 							ctx.Output(map[int]interface{}{
 								0: title,
 								1: price,
-								2: mainImg,
+								2: mainImgSrc,
 								3: discuss,
 								4: url,
 							})
