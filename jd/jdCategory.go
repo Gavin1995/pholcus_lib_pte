@@ -2,29 +2,29 @@ package pholcus_lib_pte
 
 // 基础包
 import (
-	"github.com/henrylee2cn/pholcus/app/downloader/request" //必需
-	. "github.com/henrylee2cn/pholcus/app/spider"           //必需
-	"github.com/henrylee2cn/pholcus/common/goquery"         //DOM解析
-	//"github.com/henrylee2cn/pholcus/logs"                   //信息输出
-	// . "github.com/henrylee2cn/pholcus/app/spider/common"          //选用
+"github.com/henrylee2cn/pholcus/app/downloader/request" //必需
+. "github.com/henrylee2cn/pholcus/app/spider"           //必需
+"github.com/henrylee2cn/pholcus/common/goquery"         //DOM解析
+//"github.com/henrylee2cn/pholcus/logs"                   //信息输出
+// . "github.com/henrylee2cn/pholcus/app/spider/common"          //选用
 
-	// net包
-	// "net/http" //设置http.Header
-	// "net/url"
+// net包
+// "net/http" //设置http.Header
+// "net/url"
 
-	// 编码包
-	// "encoding/xml"
-	// "encoding/json"
+// 编码包
+// "encoding/xml"
+// "encoding/json"
 
-	// 字符串处理包
-	"regexp"
-	"strconv"
-	"strings"
-	// 其他包
-	// "fmt"
-	// "math"
-	// "time"
-	//"fmt"
+// 字符串处理包
+"regexp"
+"strconv"
+"strings"
+// 其他包
+// "fmt"
+// "math"
+// "time"
+//"fmt"
 )
 
 func init() {
@@ -32,8 +32,8 @@ func init() {
 }
 
 var JDSpider = &Spider{
-	Name:        "京东品类",
-	Description: "京东品类结果 [list.jd.com]",
+	Name:        "京东品类搜索[自定义]",
+	Description: "京东搜索结果 [search.jd.com]",
 	// Pausetime: 300,
 	Keyin:        KEYIN,
 	Limit:        LIMIT,
@@ -50,7 +50,7 @@ var JDSpider = &Spider{
 				AidFunc: func(ctx *Context, aid map[string]interface{}) interface{} {
 					ctx.AddQueue(
 						&request.Request{
-							Url:  "https://list.jd.com/list.html?cat=1316,1387,11932&ev=2870_67911&page=1&sort=sort_totalsales15_desc&trans=1&JL=6_0_0&ms=5#J_main",
+							Url:  "http://search.jd.com/Search?keyword=" + ctx.GetKeyin() + "&enc=utf-8&qrst=1&rt=1&stop=1&vt=2&bs=1&s=1&click=0&page=1",
 							Rule: aid["Rule"].(string),
 						},
 					)
@@ -82,13 +82,13 @@ var JDSpider = &Spider{
 					for i := 1; i < pageCount; i++ {
 						ctx.AddQueue(
 							&request.Request{
-								Url:  "https://list.jd.com/list.html?cat=1316,1387,11932&ev=2870_67911&page=" + strconv.Itoa(i*2-1) + "1&sort=sort_totalsales15_desc&trans=1&JL=6_0_0&ms=5#J_main",
+								Url:  "http://search.jd.com/Search?keyword=" + ctx.GetKeyin() + "&enc=utf-8&qrst=1&rt=1&stop=1&vt=2&bs=1&s=1&click=0&page=" + strconv.Itoa(i*2-1),
 								Rule: "搜索结果",
 							},
 						)
 						ctx.AddQueue(
 							&request.Request{
-								Url:  "https://list.jd.com/list.html?cat=1316,1387,11932&ev=2870_67911&page=" + strconv.Itoa(i*2) + "1&sort=sort_totalsales15_desc&trans=1&JL=6_0_0&ms=5#J_main",
+								Url:  "http://search.jd.com/s_new.php?keyword=" + ctx.GetKeyin() + "&enc=utf-8&qrst=1&rt=1&stop=1&vt=2&bs=1&s=31&scrolling=y&pos=30&page=" + strconv.Itoa(i*2),
 								Rule: "搜索结果",
 							},
 						)
@@ -101,8 +101,8 @@ var JDSpider = &Spider{
 				//从返回中解析出数据。注：异步返回的结果页面结构是和单数页的一样的，所以就一套解析就可以了。
 				ItemFields: []string{
 					"标题",
+					"图片",
 					"价格",
-					"商品图",
 					"评论数",
 					"链接",
 				},
@@ -110,9 +110,9 @@ var JDSpider = &Spider{
 					query := ctx.GetDom()
 
 					query.Find(".gl-item").Each(func(i int, s *goquery.Selection) {
-						// 获取标题信息
-						a := s.Find(".p-name .p-name-type3 > a")
-						em := s.Find(".p-name .p-name-type3 > a > em")
+						// 获取标题
+						a := s.Find(".p-name.p-name-type-2 > a")
+						em := s.Find(".p-name.p-name-type-2 > a > em")
 						title := em.Text()
 
 						re, _ := regexp.Compile("\\<[\\S\\s]+?\\>")
@@ -120,12 +120,16 @@ var JDSpider = &Spider{
 						title = re.ReplaceAllString(title, " ")
 						title = strings.Trim(title, " \t\n")
 
+						// 获取图片
+						imgEle := s.Find(".p-img > a > img")
+						imgSrc, _ := imgEle.Attr("src")
+						if imgSrc == "" {
+							imgSrc, _ = imgEle.Attr("data-lazy-img")
+						}
+						imgUrl := "http:" + imgSrc
+
 						// 获取价格
 						price := s.Find(".p-price > strong > i").Text()
-
-						// 获取商品图
-						mainImg := s.Find(".p-img > a > img")
-						mainImgSrc, _ := mainImg.Attr("src")
 
 						// 获取评论数
 						//#J_goodsList > ul > li:nth-child(1) > div > div.p-commit
@@ -139,8 +143,8 @@ var JDSpider = &Spider{
 						if title != "" {
 							ctx.Output(map[int]interface{}{
 								0: title,
-								1: price,
-								2: mainImgSrc,
+								1: imgUrl,
+								2: price,
 								3: discuss,
 								4: url,
 							})
@@ -151,4 +155,3 @@ var JDSpider = &Spider{
 		},
 	},
 }
-
